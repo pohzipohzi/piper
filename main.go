@@ -35,7 +35,7 @@ func main() {
 			log.Fatalln("Error obtaining stdin:", err)
 		}
 		runWrite(sigChan, stdinChan, cmdStdin)
-        log.Println("Running command")
+		log.Println("Running command")
 		bytes, err := cmd.Output()
 		if err != nil {
 			log.Fatalln("Error running command:", err)
