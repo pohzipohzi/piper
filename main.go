@@ -2,12 +2,14 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
@@ -17,22 +19,48 @@ func main() {
 		return
 	}
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		sig := <-sigChan
 		log.Println("Received signal:", sig)
-		os.Exit(0)
+		cancelFunc()
 	}()
 
-	stdinChan := make(chan string, 1)
-	scanner := bufio.NewScanner(os.Stdin)
+	// listen to os.Stdin and pipe bytes to a channel
+	// waitgroup is the remaining number of results we expect to obtain
+	stdinChan := make(chan []byte)
+	wg := sync.WaitGroup{}
+	reader := bufio.NewReader(os.Stdin)
 	go func() {
-		for scanner.Scan() {
-			stdinChan <- scanner.Text()
+		justPiped := false
+		for {
+			bytes, err := reader.ReadBytes('\n')
+			sp := shouldPipe(bytes)
+			if justPiped && sp {
+				continue
+			}
+			if sp {
+				wg.Add(1)
+			}
+			stdinChan <- bytes
+			if err == io.EOF {
+				log.Println("Received EOF")
+				if !justPiped {
+					stdinChan <- []byte{'\n'}
+					wg.Add(1)
+				}
+				close(stdinChan)
+				cancelFunc()
+				return
+			}
+			justPiped = sp
 		}
 	}()
 
+	// run the command each time we have output to pipe
 	for {
 		cmd := exec.Command(os.Args[1], os.Args[2:]...)
 		cmdStdin, err := cmd.StdinPipe()
@@ -41,31 +69,42 @@ func main() {
 			continue
 		}
 		log.Println("Awaiting input")
-		err = bufferedPipe(stdinChan, cmdStdin, func(s string) bool { return s == "" })
-		if err != nil {
-			log.Println("Error piping to command:", err)
-			continue
-		}
-		bytes, err := cmd.Output()
-		if err != nil {
-			log.Println("Error running command:", err)
-			continue
-		}
-		log.Printf("Received result\n%s", string(bytes))
-	}
-}
 
-func bufferedPipe(stdinChan <-chan string, cmdStdin io.WriteCloser, shouldPipe func(string) bool) error {
-	writeCloser := withLog(cmdStdin)
-	defer writeCloser.Close()
-	for {
-		s := <-stdinChan
-		if shouldPipe(s) {
-			return nil
-		}
-		_, err := writeCloser.Write([]byte(s + "\n"))
-		if err != nil {
-			return err
+		errChan := make(chan error)
+		go func() {
+			writeCloser := withLog(cmdStdin)
+			defer writeCloser.Close()
+			for {
+				s := <-stdinChan
+				if shouldPipe(s) {
+					errChan <- nil
+					return
+				}
+				_, err := writeCloser.Write(s)
+				if err != nil {
+					errChan <- err
+					return
+				}
+			}
+		}()
+
+		select {
+		case <-ctx.Done():
+			wg.Wait()
+			log.Println("Execution cancelled")
+			return
+		case err := <-errChan:
+			if err != nil {
+				log.Println("Error piping to command:", err)
+				continue
+			}
+			bytes, err := cmd.Output()
+			if err != nil {
+				log.Println("Error running command:", err)
+				continue
+			}
+			log.Printf("Received result\n%s", string(bytes))
+			wg.Done()
 		}
 	}
 }
@@ -86,4 +125,8 @@ func withLog(to io.WriteCloser) io.WriteCloser {
 		}
 	}()
 	return w
+}
+
+func shouldPipe(b []byte) bool {
+	return len(b) == 1 && b[0] == '\n'
 }
