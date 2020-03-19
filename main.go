@@ -33,14 +33,14 @@ func main() {
 	}()
 
 	for {
-		log.Println("Initializing new command")
 		cmd := exec.Command(os.Args[1], os.Args[2:]...)
 		cmdStdin, err := cmd.StdinPipe()
 		if err != nil {
-			log.Fatalln("Error obtaining stdin:", err)
+			log.Println("Error obtaining stdin:", err)
+			continue
 		}
 		log.Println("Initialized new command")
-		err = runWrite(stdinChan, cmdStdin)
+		err = bufferedPipe(stdinChan, cmdStdin, func(s string) bool { return s == "" })
 		if err != nil {
 			log.Println("Error piping to command:", err)
 			continue
@@ -48,13 +48,14 @@ func main() {
 		log.Println("Running command")
 		bytes, err := cmd.Output()
 		if err != nil {
-			log.Fatalln("Error running command:", err)
+			log.Println("Error running command:", err)
+			continue
 		}
 		log.Printf("Received result:\n%s\n", string(bytes))
 	}
 }
 
-func runWrite(stdinChan <-chan string, cmdStdin io.WriteCloser) error {
+func bufferedPipe(stdinChan <-chan string, cmdStdin io.WriteCloser, shouldPipe func(string) bool) error {
 	defer cmdStdin.Close()
 	writer := bufio.NewWriter(cmdStdin)
 	defer writer.Flush()
@@ -64,7 +65,7 @@ func runWrite(stdinChan <-chan string, cmdStdin io.WriteCloser) error {
 		if err != nil {
 			return err
 		}
-		if s == "" {
+		if shouldPipe(s) {
 			return nil
 		}
 	}
