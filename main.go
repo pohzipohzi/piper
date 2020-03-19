@@ -19,49 +19,29 @@ func main() {
 		return
 	}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-
+	// kill the program immediately on receiving signal
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		sig := <-sigChan
 		log.Println("Received signal:", sig)
-		cancelFunc()
+		os.Exit(0)
 	}()
 
-	// listen to os.Stdin and pipe bytes to a channel
-	// waitgroup is the remaining number of results we expect to obtain
-	stdinChan := make(chan []byte)
-	wg := sync.WaitGroup{}
-	reader := bufio.NewReader(os.Stdin)
+	// set up graceful shutdown for terminating on EOF
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	stdinChan := make(chan string)
+	wg := &sync.WaitGroup{}
 	go func() {
-		justPiped := false
-		for {
-			bytes, err := reader.ReadBytes('\n')
-			sp := shouldPipe(bytes)
-			if justPiped && sp {
-				continue
-			}
-			if sp {
-				wg.Add(1)
-			}
-			stdinChan <- bytes
-			if err == io.EOF {
-				log.Println("Received EOF")
-				if !justPiped {
-					stdinChan <- []byte{'\n'}
-					wg.Add(1)
-				}
-				close(stdinChan)
-				cancelFunc()
-				return
-			}
-			justPiped = sp
-		}
+		<-ctx.Done()
+		wg.Wait()
+		log.Println("Execution cancelled")
+		os.Exit(0)
 	}()
+	go receive(cancelFunc, stdinChan, wg)
 
-	// run the command each time we have output to pipe
-	for {
+	// keep running the command as long as context is not cancelled
+	for ctx.Err() == nil {
 		cmd := exec.Command(os.Args[1], os.Args[2:]...)
 		cmdStdin, err := cmd.StdinPipe()
 		if err != nil {
@@ -69,57 +49,82 @@ func main() {
 			continue
 		}
 		log.Println("Awaiting input")
+		err = pipe(stdinChan, cmdStdin)
+		if err != nil {
+			log.Println("Error piping to command:", err)
+			continue
+		}
+		bytes, err := cmd.Output()
+		if err != nil {
+			log.Println("Error running command:", err)
+			continue
+		}
+		log.Printf("Received result\n%s", string(bytes))
+		wg.Done()
+	}
+}
 
-		errChan := make(chan error)
-		go func() {
-			writeCloser := withLog(cmdStdin)
-			defer writeCloser.Close()
-			for {
-				s := <-stdinChan
-				if shouldPipe(s) {
-					errChan <- nil
-					return
-				}
-				_, err := writeCloser.Write(s)
-				if err != nil {
-					errChan <- err
-					return
-				}
+// receive continually reads from os.Stdin, incrementing the number of results
+// we expect to eventually obtain, and sends the read bytes to a byte channel
+// for processing
+//
+// also handles program termination via file EOF
+func receive(cancelFunc func(), stdinChan chan<- string, wg *sync.WaitGroup) {
+	reader := bufio.NewReader(os.Stdin)
+	justPiped := false
+	for {
+		s, err := reader.ReadString('\n')
+		sp := shouldPipe(s)
+		if justPiped && sp {
+			continue
+		}
+		if sp {
+			wg.Add(1)
+		}
+		if err == io.EOF {
+			log.Println("Received EOF")
+			if !justPiped {
+				wg.Add(1)
+				stdinChan <- "\n"
 			}
-		}()
-
-		select {
-		case <-ctx.Done():
-			wg.Wait()
-			log.Println("Execution cancelled")
+			cancelFunc()
 			return
-		case err := <-errChan:
-			if err != nil {
-				log.Println("Error piping to command:", err)
-				continue
-			}
-			bytes, err := cmd.Output()
-			if err != nil {
-				log.Println("Error running command:", err)
-				continue
-			}
-			log.Printf("Received result\n%s", string(bytes))
-			wg.Done()
+		}
+		stdinChan <- s
+		justPiped = sp
+	}
+}
+
+// pipe continually reads and writes bytes from a channel to a buffered writer,
+// eventually piping the buffer (by closing the writer), returning errors if
+// any
+func pipe(stdinChan <-chan string, cmdStdin io.WriteCloser) error {
+	writeCloser := withLog(cmdStdin)
+	defer writeCloser.Close()
+	for {
+		s := <-stdinChan
+		if shouldPipe(s) {
+			return nil
+		}
+		_, err := writeCloser.Write([]byte(s))
+		if err != nil {
+			return err
 		}
 	}
 }
 
-func withLog(to io.WriteCloser) io.WriteCloser {
+// withLog decorates an io.WriteCloser, logging data that passes through it
+func withLog(next io.WriteCloser) io.WriteCloser {
 	r, w := io.Pipe()
 	go func() {
-		defer to.Close()
+		defer next.Close()
 		p, err := ioutil.ReadAll(r)
 		if err != nil {
 			log.Println("Failed to read in intermediate pipe:", err)
 			return
 		}
 		log.Printf("Received input\n%s", string(p))
-		_, err = to.Write(p)
+		_, err = next.Write(p)
 		if err != nil {
 			log.Println("Failed to write in intermediate pipe:", err)
 		}
@@ -127,6 +132,7 @@ func withLog(to io.WriteCloser) io.WriteCloser {
 	return w
 }
 
-func shouldPipe(b []byte) bool {
-	return len(b) == 1 && b[0] == '\n'
+// shouldPipe determines if a buffer should be piped
+func shouldPipe(s string) bool {
+	return s == "\n"
 }
