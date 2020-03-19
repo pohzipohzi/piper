@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -39,33 +40,50 @@ func main() {
 			log.Println("Error obtaining stdin:", err)
 			continue
 		}
-		log.Println("Initialized new command")
+		log.Println("Awaiting input")
 		err = bufferedPipe(stdinChan, cmdStdin, func(s string) bool { return s == "" })
 		if err != nil {
 			log.Println("Error piping to command:", err)
 			continue
 		}
-		log.Println("Running command")
 		bytes, err := cmd.Output()
 		if err != nil {
 			log.Println("Error running command:", err)
 			continue
 		}
-		log.Printf("Received result:\n%s\n", string(bytes))
+		log.Printf("Received result\n%s", string(bytes))
 	}
 }
 
 func bufferedPipe(stdinChan <-chan string, cmdStdin io.WriteCloser, shouldPipe func(string) bool) error {
-	defer cmdStdin.Close()
-	writer := bufio.NewWriter(cmdStdin)
+	writeCloser := withLog(cmdStdin)
+	defer writeCloser.Close()
 	for {
 		s := <-stdinChan
-		_, err := writer.WriteString(s + "\n")
+		if shouldPipe(s) {
+			return nil
+		}
+		_, err := writeCloser.Write([]byte(s + "\n"))
 		if err != nil {
 			return err
 		}
-		if shouldPipe(s) {
-			return writer.Flush()
-		}
 	}
+}
+
+func withLog(to io.WriteCloser) io.WriteCloser {
+	r, w := io.Pipe()
+	go func() {
+		defer to.Close()
+		p, err := ioutil.ReadAll(r)
+		if err != nil {
+			log.Println("Failed to read in intermediate pipe:", err)
+			return
+		}
+		log.Printf("Received input\n%s", string(p))
+		_, err = to.Write(p)
+		if err != nil {
+			log.Println("Failed to write in intermediate pipe:", err)
+		}
+	}()
+	return w
 }
