@@ -19,16 +19,8 @@ func main() {
 		return
 	}
 
-	// kill the program immediately on receiving signal
-	sigChan := make(chan os.Signal, 2)
-	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		sig := <-sigChan
-		log.Println("Received signal:", sig)
-		os.Exit(0)
-	}()
+	go exitOnTerminationSignal()
 
-	// set up graceful shutdown for terminating on EOF
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	stdinChan := make(chan string)
 	wg := &sync.WaitGroup{}
@@ -62,6 +54,16 @@ func main() {
 		log.Printf("Received result\n%s", string(bytes))
 		wg.Done()
 	}
+}
+
+// exitOnTerminationSignal prepares the program to exit on receiving
+// termination signals
+func exitOnTerminationSignal() {
+	sigChan := make(chan os.Signal, 2)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+	sig := <-sigChan
+	log.Println("Received signal:", sig)
+	os.Exit(0)
 }
 
 // receive continually reads from os.Stdin, incrementing the number of results
