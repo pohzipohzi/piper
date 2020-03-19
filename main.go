@@ -34,7 +34,12 @@ func main() {
 		if err != nil {
 			log.Fatalln("Error obtaining stdin:", err)
 		}
-		runWrite(sigChan, stdinChan, cmdStdin)
+		log.Println("Initialized new command")
+		err = runWrite(sigChan, stdinChan, cmdStdin)
+		if err != nil {
+			log.Println("Error piping to command:", err)
+			continue
+		}
 		log.Println("Running command")
 		bytes, err := cmd.Output()
 		if err != nil {
@@ -44,7 +49,7 @@ func main() {
 	}
 }
 
-func runWrite(sigChan <-chan os.Signal, stdinChan <-chan string, cmdStdin io.WriteCloser) {
+func runWrite(sigChan <-chan os.Signal, stdinChan <-chan string, cmdStdin io.WriteCloser) error {
 	defer cmdStdin.Close()
 	writer := bufio.NewWriter(cmdStdin)
 	defer writer.Flush()
@@ -54,9 +59,12 @@ func runWrite(sigChan <-chan os.Signal, stdinChan <-chan string, cmdStdin io.Wri
 			log.Println("Received signal:", sig)
 			os.Exit(0)
 		case s := <-stdinChan:
-			writer.WriteString(s + "\n")
+			_, err := writer.WriteString(s + "\n")
+			if err != nil {
+				return err
+			}
 			if s == "" {
-				return
+				return nil
 			}
 		}
 	}
