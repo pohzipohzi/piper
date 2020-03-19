@@ -58,7 +58,6 @@ func main() {
 func bufferedPipe(stdinChan <-chan string, cmdStdin io.WriteCloser, shouldPipe func(string) bool) error {
 	defer cmdStdin.Close()
 	writer := bufio.NewWriter(cmdStdin)
-	defer writer.Flush()
 	for {
 		s := <-stdinChan
 		_, err := writer.WriteString(s + "\n")
@@ -66,7 +65,7 @@ func bufferedPipe(stdinChan <-chan string, cmdStdin io.WriteCloser, shouldPipe f
 			return err
 		}
 		if shouldPipe(s) {
-			return nil
+			return writer.Flush()
 		}
 	}
 }
