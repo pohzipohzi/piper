@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -51,7 +52,8 @@ func main() {
 			log.Println("Error running command:", err)
 			continue
 		}
-		log.Printf("Received result\n%s", string(bytes))
+		log.Print("Received result")
+		fmt.Print(string(bytes))
 		wg.Done()
 	}
 }
