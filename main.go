@@ -81,14 +81,14 @@ func receive(cancelFunc func(), stdinChan chan<- string, wg *sync.WaitGroup) {
 			wg.Add(1)
 			stdinChan <- toPipe
 			toPipe = ""
-            continue
+			continue
 		}
-        if s != "" {
-            toPipe += s + "\n"
-        }
+		if s != "" {
+			toPipe += s + "\n"
+		}
 	}
 	if len(toPipe) > 0 {
-        wg.Add(1)
+		wg.Add(1)
 		stdinChan <- toPipe
 	}
 }
@@ -99,9 +99,9 @@ func receive(cancelFunc func(), stdinChan chan<- string, wg *sync.WaitGroup) {
 func pipe(stdinChan <-chan string, cmdStdin io.WriteCloser) error {
 	writeCloser := withLog(cmdStdin)
 	defer writeCloser.Close()
-    s := <-stdinChan
-    _, err := writeCloser.Write([]byte(s))
-    return err
+	s := <-stdinChan
+	_, err := writeCloser.Write([]byte(s))
+	return err
 }
 
 // withLog decorates an io.WriteCloser, logging data that passes through it
