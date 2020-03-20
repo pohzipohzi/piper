@@ -31,9 +31,11 @@ func main() {
 		log.Println("Execution cancelled")
 		os.Exit(0)
 	}()
-	go receive(cancelFunc, stdinChan, wg)
+	go func() {
+		receive(stdinChan, wg)
+		cancelFunc()
+	}()
 
-	// keep running the command as long as context is not cancelled
 	for ctx.Err() == nil {
 		cmd := exec.Command(os.Args[1], os.Args[2:]...)
 		cmdStdin, err := cmd.StdinPipe()
@@ -71,8 +73,7 @@ func exitOnTerminationSignal() {
 // receive continually reads from os.Stdin, incrementing the number of results
 // we expect to eventually obtain, and sends line-separated strings to a
 // channel for processing
-func receive(cancelFunc func(), stdinChan chan<- string, wg *sync.WaitGroup) {
-	defer cancelFunc()
+func receive(stdinChan chan<- string, wg *sync.WaitGroup) {
 	scanner := bufio.NewScanner(os.Stdin)
 	toPipe := ""
 	for scanner.Scan() {
