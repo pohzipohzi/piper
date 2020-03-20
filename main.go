@@ -69,33 +69,27 @@ func exitOnTerminationSignal() {
 }
 
 // receive continually reads from os.Stdin, incrementing the number of results
-// we expect to eventually obtain, and sends the read bytes to a byte channel
-// for processing
-//
-// also handles program termination via file EOF
+// we expect to eventually obtain, and sends line-separated strings to a
+// channel for processing
 func receive(cancelFunc func(), stdinChan chan<- string, wg *sync.WaitGroup) {
-	reader := bufio.NewReader(os.Stdin)
-	justPiped := false
-	for {
-		s, err := reader.ReadString('\n')
-		sp := shouldPipe(s)
-		if justPiped && sp {
-			continue
-		}
-		if sp {
+	defer cancelFunc()
+	scanner := bufio.NewScanner(os.Stdin)
+	toPipe := ""
+	for scanner.Scan() {
+		s := scanner.Text()
+		if s == "" && len(toPipe) > 0 {
 			wg.Add(1)
+			stdinChan <- toPipe
+			toPipe = ""
+            continue
 		}
-		if err == io.EOF {
-			log.Println("Received EOF")
-			if !justPiped {
-				wg.Add(1)
-				stdinChan <- "\n"
-			}
-			cancelFunc()
-			return
-		}
-		stdinChan <- s
-		justPiped = sp
+        if s != "" {
+            toPipe += s + "\n"
+        }
+	}
+	if len(toPipe) > 0 {
+        wg.Add(1)
+		stdinChan <- toPipe
 	}
 }
 
@@ -105,16 +99,9 @@ func receive(cancelFunc func(), stdinChan chan<- string, wg *sync.WaitGroup) {
 func pipe(stdinChan <-chan string, cmdStdin io.WriteCloser) error {
 	writeCloser := withLog(cmdStdin)
 	defer writeCloser.Close()
-	for {
-		s := <-stdinChan
-		if shouldPipe(s) {
-			return nil
-		}
-		_, err := writeCloser.Write([]byte(s))
-		if err != nil {
-			return err
-		}
-	}
+    s := <-stdinChan
+    _, err := writeCloser.Write([]byte(s))
+    return err
 }
 
 // withLog decorates an io.WriteCloser, logging data that passes through it
@@ -134,9 +121,4 @@ func withLog(next io.WriteCloser) io.WriteCloser {
 		}
 	}()
 	return w
-}
-
-// shouldPipe determines if a buffer should be piped
-func shouldPipe(s string) bool {
-	return s == "\n"
 }
