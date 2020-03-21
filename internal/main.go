@@ -3,8 +3,6 @@ package internal
 import (
 	"context"
 	"flag"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -31,7 +29,7 @@ func Main() {
 		stderr.Println("No command provided")
 		return
 	}
-	cmdFactory := cmd.NewFactory(args[0], args[1:], []func(io.WriteCloser) io.WriteCloser{withLog(stderr)})
+	cmdFactory := cmd.NewFactory(args[0], args[1:], cmd.WithLog(stderr))
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	cmdStdinChan := make(chan string)
@@ -59,26 +57,5 @@ func Main() {
 			stderr.Println("Received result")
 			stdout.Print(string(res))
 		}
-	}
-}
-
-// withLog decorates an io.WriteCloser, logging data that passes through it
-func withLog(stderrLogger *log.Logger) func(next io.WriteCloser) io.WriteCloser {
-	return func(next io.WriteCloser) io.WriteCloser {
-		r, w := io.Pipe()
-		go func() {
-			defer next.Close()
-			b, err := ioutil.ReadAll(r)
-			if err != nil {
-				stderrLogger.Println("Failed to read in intermediate pipe:", err)
-				return
-			}
-			stderrLogger.Printf("Received input\n%s", string(b))
-			_, err = next.Write(b)
-			if err != nil {
-				stderrLogger.Println("Failed to write in intermediate pipe:", err)
-			}
-		}()
-		return w
 	}
 }
