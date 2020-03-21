@@ -30,11 +30,11 @@ type cmdFactoryImpl struct {
 func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, error), error) {
 	cmd := exec.Command(i.name, i.args...)
 	wc, err := cmd.StdinPipe()
-	for _, o := range i.opts {
-		wc = o(wc)
-	}
 	if err != nil {
 		return nil, err
+	}
+	for _, o := range i.opts {
+		wc = o(wc)
 	}
 	return func(b []byte) ([]byte, error) {
 		_, err := wc.Write(b)
