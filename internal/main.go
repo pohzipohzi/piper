@@ -3,14 +3,16 @@ package internal
 import (
 	"bufio"
 	"context"
+	"flag"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/pohzipohzi/piper/internal/cmd"
 )
 
 func Main() {
@@ -24,23 +26,28 @@ func Main() {
 		os.Exit(0)
 	}()
 
+	flag.Parse()
+	args := flag.Args()
+	if len(args) < 1 {
+		stderrLogger.Println("No command provided")
+		os.Exit(0)
+	}
+	cmdFactory := cmd.NewFactory(args[0], args[1:], []func(io.WriteCloser) io.WriteCloser{withLog(stderrLogger)})
+
 	piper{
-		stderr: stderrLogger,
-		stdout: stdoutLogger,
+		stderr:     stderrLogger,
+		stdout:     stdoutLogger,
+		cmdFactory: cmdFactory,
 	}.Run()
 }
 
 type piper struct {
-	stderr *log.Logger
-	stdout *log.Logger
+	stderr     *log.Logger
+	stdout     *log.Logger
+	cmdFactory cmd.Factory
 }
 
 func (p piper) Run() {
-	if len(os.Args) < 2 {
-		p.stderr.Println("No command provided")
-		return
-	}
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	stdinChan := make(chan string)
 	wg := &sync.WaitGroup{}
@@ -56,25 +63,19 @@ func (p piper) Run() {
 	}()
 
 	for ctx.Err() == nil {
-		cmd := exec.Command(os.Args[1], os.Args[2:]...)
-		cmdStdin, err := cmd.StdinPipe()
+		f, err := p.cmdFactory.New()
 		if err != nil {
-			p.stderr.Println("Error obtaining stdin:", err)
-			continue
+			p.stderr.Println("Error creating command:", err)
 		}
 		p.stderr.Println("Awaiting input")
-		err = p.pipe(stdinChan, cmdStdin)
-		if err != nil {
-			p.stderr.Println("Error piping to command:", err)
-			continue
-		}
-		bytes, err := cmd.Output()
+		s := <-stdinChan
+		res, err := f([]byte(s))
 		if err != nil {
 			p.stderr.Println("Error running command:", err)
 			continue
 		}
 		p.stderr.Println("Received result")
-		p.stdout.Print(string(bytes))
+		p.stdout.Print(string(res))
 		wg.Done()
 	}
 }
@@ -103,32 +104,23 @@ func (p piper) receive(stdinChan chan<- string, wg *sync.WaitGroup) {
 	}
 }
 
-// pipe continually reads and writes bytes from a channel to a buffered writer,
-// eventually piping the buffer (by closing the writer), returning errors if
-// any
-func (p piper) pipe(stdinChan <-chan string, cmdStdin io.WriteCloser) error {
-	writeCloser := p.withLog(cmdStdin)
-	defer writeCloser.Close()
-	s := <-stdinChan
-	_, err := writeCloser.Write([]byte(s))
-	return err
-}
-
 // withLog decorates an io.WriteCloser, logging data that passes through it
-func (p piper) withLog(next io.WriteCloser) io.WriteCloser {
-	r, w := io.Pipe()
-	go func() {
-		defer next.Close()
-		b, err := ioutil.ReadAll(r)
-		if err != nil {
-			p.stderr.Println("Failed to read in intermediate pipe:", err)
-			return
-		}
-		p.stderr.Printf("Received input\n%s", string(b))
-		_, err = next.Write(b)
-		if err != nil {
-			p.stderr.Println("Failed to write in intermediate pipe:", err)
-		}
-	}()
-	return w
+func withLog(stderrLogger *log.Logger) func(next io.WriteCloser) io.WriteCloser {
+	return func(next io.WriteCloser) io.WriteCloser {
+		r, w := io.Pipe()
+		go func() {
+			defer next.Close()
+			b, err := ioutil.ReadAll(r)
+			if err != nil {
+				stderrLogger.Println("Failed to read in intermediate pipe:", err)
+				return
+			}
+			stderrLogger.Printf("Received input\n%s", string(b))
+			_, err = next.Write(b)
+			if err != nil {
+				stderrLogger.Println("Failed to write in intermediate pipe:", err)
+			}
+		}()
+		return w
+	}
 }
