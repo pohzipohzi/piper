@@ -3,7 +3,6 @@ package internal
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -15,21 +14,30 @@ import (
 )
 
 func Main() {
+	stderrLogger := log.New(os.Stderr, "", log.LstdFlags)
+	stdoutLogger := log.New(os.Stdout, "", 0)
 	go func() {
 		sigChan := make(chan os.Signal, 2)
 		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 		sig := <-sigChan
-		log.Println("Received signal:", sig)
+		stdoutLogger.Println("Received signal:", sig)
 		os.Exit(0)
 	}()
-	piper{}.Run()
+
+	piper{
+		stderr: stderrLogger,
+		stdout: stdoutLogger,
+	}.Run()
 }
 
-type piper struct{}
+type piper struct {
+	stderr *log.Logger
+	stdout *log.Logger
+}
 
 func (p piper) Run() {
 	if len(os.Args) < 2 {
-		log.Println("No command provided")
+		p.stderr.Println("No command provided")
 		return
 	}
 
@@ -39,7 +47,7 @@ func (p piper) Run() {
 	go func() {
 		<-ctx.Done()
 		wg.Wait()
-		log.Println("Execution cancelled")
+		p.stderr.Println("Execution cancelled")
 		os.Exit(0)
 	}()
 	go func() {
@@ -51,22 +59,22 @@ func (p piper) Run() {
 		cmd := exec.Command(os.Args[1], os.Args[2:]...)
 		cmdStdin, err := cmd.StdinPipe()
 		if err != nil {
-			log.Println("Error obtaining stdin:", err)
+			p.stderr.Println("Error obtaining stdin:", err)
 			continue
 		}
-		log.Println("Awaiting input")
+		p.stderr.Println("Awaiting input")
 		err = p.pipe(stdinChan, cmdStdin)
 		if err != nil {
-			log.Println("Error piping to command:", err)
+			p.stderr.Println("Error piping to command:", err)
 			continue
 		}
 		bytes, err := cmd.Output()
 		if err != nil {
-			log.Println("Error running command:", err)
+			p.stderr.Println("Error running command:", err)
 			continue
 		}
-		log.Print("Received result")
-		fmt.Print(string(bytes))
+		p.stderr.Println("Received result")
+		p.stdout.Print(string(bytes))
 		wg.Done()
 	}
 }
@@ -111,15 +119,15 @@ func (p piper) withLog(next io.WriteCloser) io.WriteCloser {
 	r, w := io.Pipe()
 	go func() {
 		defer next.Close()
-		p, err := ioutil.ReadAll(r)
+		b, err := ioutil.ReadAll(r)
 		if err != nil {
-			log.Println("Failed to read in intermediate pipe:", err)
+			p.stderr.Println("Failed to read in intermediate pipe:", err)
 			return
 		}
-		log.Printf("Received input\n%s", string(p))
-		_, err = next.Write(p)
+		p.stderr.Printf("Received input\n%s", string(b))
+		_, err = next.Write(b)
 		if err != nil {
-			log.Println("Failed to write in intermediate pipe:", err)
+			p.stderr.Println("Failed to write in intermediate pipe:", err)
 		}
 	}()
 	return w
