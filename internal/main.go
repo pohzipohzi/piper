@@ -15,7 +15,14 @@ import (
 )
 
 func Main() {
-    piper{}.Run()
+	go func() {
+		sigChan := make(chan os.Signal, 2)
+		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+		sig := <-sigChan
+		log.Println("Received signal:", sig)
+		os.Exit(0)
+	}()
+	piper{}.Run()
 }
 
 type piper struct{}
@@ -25,8 +32,6 @@ func (p piper) Run() {
 		log.Println("No command provided")
 		return
 	}
-
-	go p.exitOnTerminationSignal()
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	stdinChan := make(chan string)
@@ -64,16 +69,6 @@ func (p piper) Run() {
 		fmt.Print(string(bytes))
 		wg.Done()
 	}
-}
-
-// exitOnTerminationSignal prepares the program to exit on receiving
-// termination signals
-func (p piper) exitOnTerminationSignal() {
-	sigChan := make(chan os.Signal, 2)
-	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
-	sig := <-sigChan
-	log.Println("Received signal:", sig)
-	os.Exit(0)
 }
 
 // receive continually reads from os.Stdin, incrementing the number of results
