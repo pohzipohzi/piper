@@ -37,10 +37,10 @@ func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, error), error) {
 		if err != nil {
 			return nil, err
 		}
-        err = wc.Close()
-        if err != nil {
-            return nil, err
-        }
+		err = wc.Close()
+		if err != nil {
+			return nil, err
+		}
 		return cmd.Output()
 	}, nil
 }
