@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"io"
@@ -9,98 +8,57 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/pohzipohzi/piper/internal/cmd"
+	"github.com/pohzipohzi/piper/internal/piper"
 )
 
 func Main() {
-	stderrLogger := log.New(os.Stderr, "", log.LstdFlags)
-	stdoutLogger := log.New(os.Stdout, "", 0)
+	stderr := log.New(os.Stderr, "", log.LstdFlags)
+	stdout := log.New(os.Stdout, "", 0)
 	go func() {
 		sigChan := make(chan os.Signal, 2)
 		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 		sig := <-sigChan
-		stdoutLogger.Println("Received signal:", sig)
+		stdout.Println("Received signal:", sig)
 		os.Exit(0)
 	}()
 
 	flag.Parse()
 	args := flag.Args()
 	if len(args) < 1 {
-		stderrLogger.Println("No command provided")
-		os.Exit(0)
+		stderr.Println("No command provided")
+		return
 	}
-	cmdFactory := cmd.NewFactory(args[0], args[1:], []func(io.WriteCloser) io.WriteCloser{withLog(stderrLogger)})
+	cmdFactory := cmd.NewFactory(args[0], args[1:], []func(io.WriteCloser) io.WriteCloser{withLog(stderr)})
 
-	piper{
-		stderr:     stderrLogger,
-		stdout:     stdoutLogger,
-		cmdFactory: cmdFactory,
-	}.Run()
-}
-
-type piper struct {
-	stderr     *log.Logger
-	stdout     *log.Logger
-	cmdFactory cmd.Factory
-}
-
-func (p piper) Run() {
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	stdinChan := make(chan string)
-	wg := &sync.WaitGroup{}
+	cmdStdinChan := make(chan string)
 	go func() {
-		<-ctx.Done()
-		wg.Wait()
-		p.stderr.Println("Execution cancelled")
-		os.Exit(0)
-	}()
-	go func() {
-		p.receive(stdinChan, wg)
+		piper.New(os.Stdin, cmdStdinChan).Start()
 		cancelFunc()
 	}()
 
-	for ctx.Err() == nil {
-		f, err := p.cmdFactory.New()
+	for {
+		f, err := cmdFactory.New()
 		if err != nil {
-			p.stderr.Println("Error creating command:", err)
+			stderr.Println("Error creating command:", err)
 		}
-		p.stderr.Println("Awaiting input")
-		s := <-stdinChan
-		res, err := f([]byte(s))
-		if err != nil {
-			p.stderr.Println("Error running command:", err)
-			continue
+		stderr.Println("Awaiting input")
+		select {
+		case <-ctx.Done():
+			stderr.Println("Execution cancelled")
+			return
+		case s := <-cmdStdinChan:
+			res, err := f([]byte(s))
+			if err != nil {
+				stderr.Println("Error running command:", err)
+				continue
+			}
+			stderr.Println("Received result")
+			stdout.Print(string(res))
 		}
-		p.stderr.Println("Received result")
-		p.stdout.Print(string(res))
-		wg.Done()
-	}
-}
-
-// receive continually reads from os.Stdin, incrementing the number of results
-// we expect to eventually obtain, and sends line-separated strings to a
-// channel for processing
-func (p piper) receive(stdinChan chan<- string, wg *sync.WaitGroup) {
-	scanner := bufio.NewScanner(os.Stdin)
-	toPipe := ""
-	for scanner.Scan() {
-		s := scanner.Text()
-		if s == "" && len(toPipe) > 0 {
-			wg.Add(1)
-			stdinChan <- toPipe
-			toPipe = ""
-			continue
-		}
-		if s != "" {
-			toPipe += s + "\n"
-		}
-	}
-	if len(toPipe) > 0 {
-		wg.Add(1)
-		stdinChan <- toPipe
 	}
 }
 
