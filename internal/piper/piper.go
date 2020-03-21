@@ -2,6 +2,7 @@ package piper
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 )
 
@@ -25,19 +26,20 @@ type piperImpl struct {
 
 func (i *piperImpl) Start() {
 	scanner := bufio.NewScanner(i.r)
-	toPipe := ""
+	buf := new(bytes.Buffer)
 	for scanner.Scan() {
-		s := scanner.Text()
-		if s == "" && len(toPipe) > 0 {
-			i.w <- toPipe
-			toPipe = ""
+		b := scanner.Bytes()
+		if len(b) == 0 && buf.Len() > 0 {
+			i.w <- buf.String()
+			buf.Reset()
 			continue
 		}
-		if s != "" {
-			toPipe += s + "\n"
+		if len(b) > 0 {
+			_, _ = buf.Write(b)
+			_ = buf.WriteByte('\n')
 		}
 	}
-	if len(toPipe) > 0 {
-		i.w <- toPipe
+	if buf.Len() > 0 {
+		i.w <- buf.String()
 	}
 }
