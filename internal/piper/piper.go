@@ -6,8 +6,8 @@ import (
 	"io"
 )
 
-// Piper continually reads from a reader into a buffer, sending the buffer as a
-// line-separated string to a channel upon receiving an empty line
+// Piper continually reads from a reader into a buffer, eventually piping the
+// buffer to a channel as a line-separated string
 type Piper interface {
 	Start()
 }
