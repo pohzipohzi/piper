@@ -7,7 +7,7 @@ linters:
     - dogsled
     - dupl
     - errcheck
-    - funlen
+    #- funlen
     - gochecknoglobals
     - gochecknoinits
     - gocognit
@@ -18,7 +18,7 @@ linters:
     - gofmt
     - goimports
     - golint
-      #- gosec
+    #- gosec
     - gosimple
     - govet
     - ineffassign
@@ -38,4 +38,4 @@ linters:
     - unused
     - varcheck
     - whitespace
-      #- wsl
+    #- wsl
