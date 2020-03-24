@@ -50,20 +50,20 @@ func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, error), error) {
 }
 
 // WithLog sets up an intermediary pipe that logs data passing through a writer
-func WithLog(stderrLogger *log.Logger) Opt {
+func WithLog(logger *log.Logger) Opt {
 	return func(next io.WriteCloser) io.WriteCloser {
 		r, w := io.Pipe()
 		go func() {
 			defer next.Close()
 			b, err := ioutil.ReadAll(r)
 			if err != nil {
-				stderrLogger.Println("Failed to read in WithLog pipe:", err)
+				logger.Println("WithLog: Failed to read with error:", err)
 				return
 			}
-			stderrLogger.Printf("Received input\n%s", string(b))
+			logger.Printf("Received input\n%s", string(b))
 			_, err = next.Write(b)
 			if err != nil {
-				stderrLogger.Println("Failed to write in WithLog pipe:", err)
+				logger.Println("WithLog: Failed to write with error:", err)
 			}
 		}()
 		return w
