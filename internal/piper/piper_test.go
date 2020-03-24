@@ -1,7 +1,7 @@
 package piper
 
 import (
-	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -15,107 +15,107 @@ func Test_New(t *testing.T) {
 func Test_piperImpl_Start(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
-		input      []byte
+		input      string
 		outputChan chan string
 		expect     []string
 	}{
 		{
-			input:      []byte("\r\n"),
+			input:      "\r\n",
 			outputChan: make(chan string),
 			expect:     []string{},
 		},
 		{
-			input:      []byte("\n"),
+			input:      "\n",
 			outputChan: make(chan string),
 			expect:     []string{},
 		},
 		{
-			input:      []byte(""),
+			input:      "",
 			outputChan: make(chan string),
 			expect:     []string{},
 		},
 		{
-			input:      []byte("1\r\n"),
+			input:      "1\r\n",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("1\n"),
+			input:      "1\n",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("1"),
+			input:      "1",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("\n1"),
+			input:      "\n1",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("\r\n1"),
+			input:      "\r\n1",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("\n1\n"),
+			input:      "\n1\n",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("\r\n1\r\n"),
+			input:      "\r\n1\r\n",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("\r\n1\n"),
+			input:      "\r\n1\n",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("\n1\r\n"),
+			input:      "\n1\r\n",
 			outputChan: make(chan string),
 			expect:     []string{"1\n"},
 		},
 		{
-			input:      []byte("1\n2"),
+			input:      "1\n2",
 			outputChan: make(chan string),
 			expect:     []string{"1\n2\n"},
 		},
 		{
-			input:      []byte("1\n\n2"),
+			input:      "1\n\n2",
 			outputChan: make(chan string),
 			expect:     []string{"1\n", "2\n"},
 		},
 		{
-			input:      []byte("1\n\n\n2"),
+			input:      "1\n\n\n2",
 			outputChan: make(chan string),
 			expect:     []string{"1\n", "2\n"},
 		},
 		{
-			input:      []byte("1\n\n2\n3"),
+			input:      "1\n\n2\n3",
 			outputChan: make(chan string),
 			expect:     []string{"1\n", "2\n3\n"},
 		},
 		{
-			input:      []byte("1\n2\n\n3"),
+			input:      "1\n2\n\n3",
 			outputChan: make(chan string),
 			expect:     []string{"1\n2\n", "3\n"},
 		},
 		{
-			input:      []byte("1\n\n2\n\n3"),
+			input:      "1\n\n2\n\n3",
 			outputChan: make(chan string),
 			expect:     []string{"1\n", "2\n", "3\n"},
 		},
 		{
-			input:      []byte("1\n\n\n2\n\n\n3"),
+			input:      "1\n\n\n2\n\n\n3",
 			outputChan: make(chan string),
 			expect:     []string{"1\n", "2\n", "3\n"},
 		},
 	} {
-		reader := bytes.NewReader(test.input)
+		reader := strings.NewReader(test.input)
 		pi := &piperImpl{
 			r: reader,
 			w: test.outputChan,
