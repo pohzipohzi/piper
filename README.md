@@ -34,7 +34,7 @@ bar
 
 ```
 
-Behind the scenes, `piper` stores the input in a buffer, then pipes the stored input into the output command on receiving an additional line. In our example with `wc`, we should see the following output:
+Behind the scenes, `piper` stores the input temporarily in a buffer until it receives a blank line (`\r?\n`), following which it creates and starts a new command, pipes all input from the buffer to the command and redirects all standard output from the command to stdout. In our example with `wc`, we should see the following output:
 
 ```
 INPUT
@@ -42,6 +42,18 @@ foo
 bar
 OUTPUT
        2       2       8
+```
+
+Even though `wc` has exited, `piper` is still running, allowing us to provide more input and run new instances of our command:
+
+```
+foo2 bar2
+
+INPUT
+foo2 bar2
+OUTPUT
+       1       2      10
+
 ```
 
 To exit, we can send an interrupt signal (usually CTRL-C).
