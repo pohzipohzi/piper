@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"io"
-	"io/ioutil"
-	"log"
 	"os/exec"
 )
 
@@ -47,25 +45,4 @@ func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, error), error) {
 		}
 		return cmd.Output()
 	}, nil
-}
-
-// WithLog sets up an intermediary pipe that logs data passing through a writer
-func WithLog(logger *log.Logger) Opt {
-	return func(next io.WriteCloser) io.WriteCloser {
-		r, w := io.Pipe()
-		go func() {
-			defer next.Close()
-			b, err := ioutil.ReadAll(r)
-			if err != nil {
-				logger.Println("WithLog: Failed to read with error:", err)
-				return
-			}
-			logger.Printf("Received input\n%s", string(b))
-			_, err = next.Write(b)
-			if err != nil {
-				logger.Println("WithLog: Failed to write with error:", err)
-			}
-		}()
-		return w
-	}
 }
