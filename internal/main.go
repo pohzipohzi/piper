@@ -53,7 +53,7 @@ func Main() {
 				continue
 			}
 			fmt.Fprintln(os.Stderr, "OUTPUT")
-			fmt.Fprintln(os.Stdout, string(res))
+			fmt.Fprint(os.Stdout, string(res))
 		}
 	}
 }
