@@ -3,7 +3,7 @@ package internal
 import (
 	"context"
 	"flag"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,23 +13,21 @@ import (
 )
 
 func Main() {
-	stderr := log.New(os.Stderr, "", log.LstdFlags)
-	stdout := log.New(os.Stdout, "", 0)
 	go func() {
 		sigChan := make(chan os.Signal, 2)
 		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 		sig := <-sigChan
-		stdout.Println("Received signal:", sig)
+		fmt.Fprintln(os.Stderr, "Received signal:", sig)
 		os.Exit(0)
 	}()
 
 	flag.Parse()
 	args := flag.Args()
 	if len(args) < 1 {
-		stderr.Println("No command provided")
+		fmt.Fprintln(os.Stderr, "No command provided")
 		return
 	}
-	cmdFactory := cmd.NewFactory(args[0], args[1:], cmd.WithLog(stderr))
+	cmdFactory := cmd.NewFactory(args[0], args[1:])
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	cmdStdinChan := make(chan string)
@@ -41,21 +39,21 @@ func Main() {
 	for {
 		f, err := cmdFactory.New()
 		if err != nil {
-			stderr.Println("Error creating command:", err)
+			fmt.Fprintln(os.Stderr, "Error creating command:", err)
 		}
-		stderr.Println("Awaiting input")
 		select {
 		case <-ctx.Done():
-			stderr.Println("Execution cancelled")
 			return
 		case s := <-cmdStdinChan:
+			fmt.Fprintln(os.Stderr, "INPUT")
+			fmt.Fprint(os.Stderr, s)
 			res, err := f([]byte(s))
 			if err != nil {
-				stderr.Println("Error running command:", err)
+				fmt.Fprintln(os.Stderr, "Error running command:", err)
 				continue
 			}
-			stderr.Println("Received result")
-			stdout.Print(string(res))
+			fmt.Fprintln(os.Stderr, "OUTPUT")
+			fmt.Fprintln(os.Stdout, string(res))
 		}
 	}
 }
