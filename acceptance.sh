@@ -1,7 +1,7 @@
 #!/bin/bash
 
 test_cat() {
-    diff <(printf "$1" | go run main.go cat 2>/dev/null) <(printf "$2") || 
+    diff <(printf "$1" | go run main.go -c cat 2>/dev/null) <(printf "$2") || 
         { echo "Failed for input $1"; exit 1; }
 }
 

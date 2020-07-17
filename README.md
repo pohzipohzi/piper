@@ -23,7 +23,7 @@ The easiest way to get started with `piper` is to run it interactively.
 Suppose we want to run `piper` with the program `wc`, we can do it using:
 
 ```
-piper wc
+piper -c wc
 ```
 
 Next we can type some input into the console, hitting an additional enter when we are done:
@@ -78,7 +78,7 @@ foo2 bar2
 We can run `piper` by accepting the input `in`:
 
 ```
-piper wc < in
+piper -c wc < in
 ```
 
 This should give us the following output:
@@ -102,7 +102,7 @@ OUTPUT
 `piper` only prints to stdout the stdout from running the provided command. To ignore stderr, we could use:
 
 ```
-piper wc < in 2> /dev/null
+piper -c wc < in 2> /dev/null
 ```
 
 This should give us the following output:
@@ -120,13 +120,12 @@ As we only consider stdout from running the provided command, it is also possibl
 2
 
 1
-
 ```
 
 Now we can compare the above file with our command using `diff`:
 
 ```
-diff <(piper wc -l < in 2> /dev/null | awk '{$1=$1};1') <(piper cat < out 2> /dev/null)
+diff <(piper -c "wc -l" < in 2> /dev/null | awk '{$1=$1};1') <(piper -c cat < out 2> /dev/null)
 ```
 
 We should see no output from the above command, which means that there were no differences in the two outputs.

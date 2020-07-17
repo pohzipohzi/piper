@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/pohzipohzi/piper/internal/cmd"
@@ -21,12 +22,15 @@ func Main() {
 		os.Exit(0)
 	}()
 
+	command := ""
+	flag.StringVar(&command, "c", "", "the command to run")
 	flag.Parse()
-	args := flag.Args()
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "No command provided")
+	if command == "" {
+		flag.Usage()
 		return
 	}
+
+	args := strings.Split(command, " ")
 	cmdFactory := cmd.NewFactory(args[0], args[1:])
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
