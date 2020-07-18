@@ -92,7 +92,7 @@ func Main() {
 				fmt.Fprintln(os.Stderr, "Error running command:", err)
 				continue
 			}
-			if bytes.Compare(res, res2) == 0 {
+			if bytes.Equal(res, res2) {
 				fmt.Fprintln(os.Stderr, "EQUAL")
 				continue
 			}
@@ -101,7 +101,6 @@ func Main() {
 			fmt.Fprint(os.Stdout, string(res))
 			fmt.Fprintln(os.Stderr, "Output for \""+diff+"\"")
 			fmt.Fprint(os.Stdout, string(res2))
-
 		}
 	}
 }
