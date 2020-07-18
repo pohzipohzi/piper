@@ -22,10 +22,14 @@ func Main() {
 		os.Exit(0)
 	}()
 
-	command := ""
+	var (
+		help    bool
+		command string
+	)
+	flag.BoolVar(&help, "h", false, "print usage")
 	flag.StringVar(&command, "c", "", "the command to run")
 	flag.Parse()
-	if command == "" {
+	if help || command == "" {
 		flag.Usage()
 		return
 	}
