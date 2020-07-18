@@ -45,14 +45,15 @@ func Main() {
 	}()
 
 	for {
-		f, err := cmdFactory.New()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error creating command:", err)
-		}
 		select {
 		case <-ctx.Done():
 			return
 		case s := <-cmdStdinChan:
+			f, err := cmdFactory.New()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error creating command:", err)
+				continue
+			}
 			fmt.Fprintln(os.Stderr, "INPUT")
 			fmt.Fprint(os.Stderr, s)
 			res, err := f([]byte(s))
