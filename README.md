@@ -2,8 +2,6 @@
 
 Piper buffers and pipes line-separated input into a provided command. 
 
-It is initiially conceived as a way to quickly run multiple inputs on cp problems that do not specify multiple test cases in one file.
-
 ## Installation
 
 Simply run `go install` in the root directory:
@@ -37,10 +35,10 @@ bar
 Behind the scenes, `piper` stores the input temporarily in a buffer until it receives a blank line (`\r?\n`), following which it creates and starts a new command, pipes all input from the buffer to the command and redirects all standard output from the command to stdout. In our example with `wc`, we should see the following output:
 
 ```
-INPUT
+(input)
 foo
 bar
-OUTPUT
+(output)
        2       2       8
 ```
 
@@ -49,9 +47,9 @@ Even though `wc` has exited, `piper` is still running, allowing us to provide mo
 ```
 foo2 bar2
 
-INPUT
+(input)
 foo2 bar2
-OUTPUT
+(output)
        1       2      10
 
 ```
@@ -84,17 +82,15 @@ piper -c wc < in
 This should give us the following output:
 
 ```
-INPUT
+(input)
 foo
 bar
-OUTPUT
+(output)
        2       2       8
-
-INPUT
+(input)
 foo2 bar2
-OUTPUT
+(output)
        1       2      10
-
 ```
 
 #### Ignoring stderr
