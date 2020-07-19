@@ -60,23 +60,23 @@ func Main() {
 		case <-ctx.Done():
 			return
 		case s := <-cmdStdinChan:
-			fmt.Fprintln(os.Stderr, "INPUT")
+			fmt.Fprintln(os.Stderr, "(input)")
 			fmt.Fprint(os.Stderr, s)
 			b := []byte(s)
 
 			// run command
 			f, err := cmdFactory.New()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error creating command:", err)
+				fmt.Fprintln(os.Stderr, "error creating command:", err)
 				continue
 			}
 			res, err := f(b)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error running command:", err)
+				fmt.Fprintln(os.Stderr, "error running command:", err)
 				continue
 			}
 			if diff == "" {
-				fmt.Fprintln(os.Stderr, "OUTPUT")
+				fmt.Fprintln(os.Stderr, "(output)")
 				fmt.Fprint(os.Stdout, string(res))
 				continue
 			}
@@ -84,22 +84,20 @@ func Main() {
 			// run diff
 			f2, err := diffFactory.New()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error creating command:", err)
+				fmt.Fprintln(os.Stderr, "error creating command:", err)
 				continue
 			}
 			res2, err := f2(b)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error running command:", err)
+				fmt.Fprintln(os.Stderr, "error running command:", err)
 				continue
 			}
 			if bytes.Equal(res, res2) {
-				fmt.Fprintln(os.Stderr, "EQUAL")
 				continue
 			}
-			fmt.Fprintln(os.Stdout, "NOT EQUAL")
-			fmt.Fprintln(os.Stderr, "Output for \""+command+"\"")
+			fmt.Fprintln(os.Stderr, "(output) "+command)
 			fmt.Fprint(os.Stdout, string(res))
-			fmt.Fprintln(os.Stderr, "Output for \""+diff+"\"")
+			fmt.Fprintln(os.Stderr, "(output) "+diff)
 			fmt.Fprint(os.Stdout, string(res2))
 		}
 	}
