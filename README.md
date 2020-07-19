@@ -29,7 +29,6 @@ Next we can type some input into the console, hitting an additional enter when w
 ```
 foo
 bar
-
 ```
 
 Behind the scenes, `piper` stores the input temporarily in a buffer until it receives a blank line (`\r?\n`), following which it creates and starts a new command, pipes all input from the buffer to the command and redirects all standard output from the command to stdout. In our example with `wc`, we should see the following output:
@@ -51,7 +50,6 @@ foo2 bar2
 foo2 bar2
 (output)
        1       2      10
-
 ```
 
 To exit, we can send an interrupt signal (usually CTRL-C).
@@ -73,7 +71,7 @@ bar
 foo2 bar2
 ```
 
-We can run `piper` by accepting the input `in`:
+We can run `piper` by redirecting from `in`:
 
 ```
 piper -c wc < in
@@ -92,5 +90,4 @@ bar
 foo2 bar2
 (output)
        1       2      10
-
 ```
