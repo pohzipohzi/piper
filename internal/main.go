@@ -60,8 +60,6 @@ func Main() {
 		case <-ctx.Done():
 			return
 		case s := <-cmdStdinChan:
-			fmt.Fprintln(os.Stderr, "(input)")
-			fmt.Fprint(os.Stderr, s)
 			b := []byte(s)
 
 			// run command
@@ -76,6 +74,8 @@ func Main() {
 				continue
 			}
 			if diff == "" {
+				fmt.Fprintln(os.Stderr, "(input)")
+				fmt.Fprint(os.Stderr, s)
 				fmt.Fprintln(os.Stderr, "(output)")
 				fmt.Fprint(os.Stdout, string(res))
 				continue
@@ -95,6 +95,8 @@ func Main() {
 			if bytes.Equal(res, res2) {
 				continue
 			}
+			fmt.Fprintln(os.Stderr, "(input)")
+			fmt.Fprint(os.Stderr, s)
 			fmt.Fprintln(os.Stderr, "(output) "+command)
 			fmt.Fprint(os.Stdout, string(res))
 			fmt.Fprintln(os.Stderr, "(output) "+diff)
