@@ -25,15 +25,15 @@ func Main() {
 	}()
 
 	var (
-		help    bool
-		command string
-		diff    string
+		flagC string
+		flagD string
+		flagO bool
 	)
-	flag.BoolVar(&help, "h", false, "print usage")
-	flag.StringVar(&command, "c", "", "the command to run")
-	flag.StringVar(&diff, "d", "", "(optional) the command to diff against")
+	flag.StringVar(&flagC, "c", "", "the command to run")
+	flag.StringVar(&flagD, "d", "", "(optional) the command to diff against")
+	flag.BoolVar(&flagO, "o", false, "(optional) show output only")
 	flag.Parse()
-	if help || command == "" {
+	if flagC == "" {
 		flag.Usage()
 		return
 	}
@@ -49,10 +49,10 @@ func Main() {
 		cmdFactory  cmd.Factory
 		diffFactory cmd.Factory
 	)
-	cmdArgs := strings.Split(command, " ")
+	cmdArgs := strings.Split(flagC, " ")
 	cmdFactory = cmd.NewFactory(cmdArgs[0], cmdArgs[1:])
-	if diff != "" {
-		diffArgs := strings.Split(diff, " ")
+	if flagD != "" {
+		diffArgs := strings.Split(flagD, " ")
 		diffFactory = cmd.NewFactory(diffArgs[0], diffArgs[1:])
 	}
 
@@ -76,9 +76,11 @@ func Main() {
 				fmt.Fprintln(os.Stderr, "error running command:", err)
 				continue
 			}
-			if diff == "" {
-				stdout.WriteString("(input)\n")
-				stdout.Write(b)
+			if flagD == "" {
+				if !flagO {
+					stdout.WriteString("(input)\n")
+					stdout.Write(b)
+				}
 				stdout.WriteString("(output)\n")
 				stdout.Write(res)
 				stdout.WriteByte('\n')
@@ -100,11 +102,13 @@ func Main() {
 			if bytes.Equal(res, res2) {
 				continue
 			}
-			stdout.WriteString("(input)\n")
-			stdout.Write(b)
-			stdout.WriteString("(output: " + command + ")\n")
+			if !flagO {
+				stdout.WriteString("(input)\n")
+				stdout.Write(b)
+			}
+			stdout.WriteString("(output: " + flagC + ")\n")
 			stdout.Write(res)
-			stdout.WriteString("(output: " + diff + ")\n")
+			stdout.WriteString("(output: " + flagD + ")\n")
 			stdout.Write(res2)
 			stdout.WriteByte('\n')
 			stdout.Flush()
