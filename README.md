@@ -87,41 +87,10 @@ foo
 bar
 (output)
        2       2       8
+
 (input)
 foo2 bar2
 (output)
        1       2      10
-```
-
-#### Ignoring stderr
-
-`piper` only prints to stdout the stdout from running the provided command. To ignore stderr, we could use:
 
 ```
-piper -c wc < in 2> /dev/null
-```
-
-This should give us the following output:
-
-```
-       2       2       8
-       1       2      10
-```
-
-#### Comparing output with another file
-
-As we only consider stdout from running the provided command, it is also possible to compare the stdout with what we expect the output to be. Suppose we want to modify the above example to only count the number of lines (`wc -l < in | awk '{$1=$1};1'`), we can make a new file `out` that contains the expected output:
-
-```
-2
-
-1
-```
-
-Now we can compare the above file with our command using `diff`:
-
-```
-diff <(piper -c "wc -l" < in 2> /dev/null | awk '{$1=$1};1') <(piper -c cat < out 2> /dev/null)
-```
-
-We should see no output from the above command, which means that there were no differences in the two outputs.

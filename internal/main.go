@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"flag"
@@ -55,6 +56,8 @@ func Main() {
 		diffFactory = cmd.NewFactory(diffArgs[0], diffArgs[1:])
 	}
 
+	stdout := bufio.NewWriter(os.Stdout)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -74,10 +77,12 @@ func Main() {
 				continue
 			}
 			if diff == "" {
-				fmt.Fprintln(os.Stderr, "(input)")
-				fmt.Fprint(os.Stderr, s)
-				fmt.Fprintln(os.Stderr, "(output)")
-				fmt.Fprint(os.Stdout, string(res))
+				stdout.WriteString("(input)\n")
+				stdout.Write(b)
+				stdout.WriteString("(output)\n")
+				stdout.Write(res)
+				stdout.WriteByte('\n')
+				stdout.Flush()
 				continue
 			}
 
@@ -95,12 +100,14 @@ func Main() {
 			if bytes.Equal(res, res2) {
 				continue
 			}
-			fmt.Fprintln(os.Stderr, "(input)")
-			fmt.Fprint(os.Stderr, s)
-			fmt.Fprintln(os.Stderr, "(output) "+command)
-			fmt.Fprint(os.Stdout, string(res))
-			fmt.Fprintln(os.Stderr, "(output) "+diff)
-			fmt.Fprint(os.Stdout, string(res2))
+			stdout.WriteString("(input)\n")
+			stdout.Write(b)
+			stdout.WriteString("(output: " + command + ")\n")
+			stdout.Write(res)
+			stdout.WriteString("(output: " + diff + ")\n")
+			stdout.Write(res2)
+			stdout.WriteByte('\n')
+			stdout.Flush()
 		}
 	}
 }
