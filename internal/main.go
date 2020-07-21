@@ -7,23 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	"github.com/pohzipohzi/piper/internal/cmd"
 	"github.com/pohzipohzi/piper/internal/piper"
 )
 
 func Main() {
-	go func() {
-		sigChan := make(chan os.Signal, 2)
-		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
-		sig := <-sigChan
-		fmt.Fprintln(os.Stderr, "Received signal:", sig)
-		os.Exit(0)
-	}()
-
 	var (
 		flagC string
 		flagD string

@@ -54,10 +54,6 @@ foo2 bar2
 
 To exit, we can send an interrupt signal (usually CTRL-C).
 
-```
-^CReceived signal: interrupt
-```
-
 #### I/O redirection
 
 Instead of typing input manually, we can redirect all input from a file instead.
