@@ -1,9 +1,9 @@
-FROM golang:1.14.0-alpine3.11
+FROM golang:1.14.6-alpine
 
 WORKDIR /go/src
 
 COPY . .
 
-RUN go build -o piper
+RUN go install
 
-ENTRYPOINT ["./piper"]
+ENTRYPOINT ["piper"]

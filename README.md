@@ -4,12 +4,21 @@ Piper buffers and pipes line-separated input into a provided command.
 
 ## Installation
 
-Simply run `go install` in the root directory:
+#### Via Go
+
+Simply run `install` in the root directory:
 
 ```
-git clone https://github.com/pohzipohzi/piper.git
-cd piper
 go install
+```
+
+#### Via Docker
+
+Build the image in the root directory and run it interactively:
+
+```
+docker build -t piper .
+docker run -i piper
 ```
 
 ## Usage
