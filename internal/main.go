@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/pohzipohzi/piper/internal/cmd"
@@ -25,20 +26,14 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 }
 
 func (h Handler) Run() int {
-	done := make(chan struct{})
-	cmdStdinChan := make(chan string)
-	go func() {
-		piper.New(os.Stdin, cmdStdinChan).Start()
-		done <- struct{}{}
-	}()
-
 	stdout := bufio.NewWriter(os.Stdout)
-
+	toPipe := make(chan string)
+	done := h.startPiping(os.Stdin, toPipe)
 	for {
 		select {
 		case <-done:
 			return 0
-		case s := <-cmdStdinChan:
+		case s := <-toPipe:
 			b := []byte(s)
 
 			// run command
@@ -93,4 +88,13 @@ func (h Handler) Run() int {
 			stdout.Flush()
 		}
 	}
+}
+
+func (h Handler) startPiping(in io.Reader, out chan<- string) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		piper.New(in, out).Start()
+		done <- struct{}{}
+	}()
+	return done
 }
