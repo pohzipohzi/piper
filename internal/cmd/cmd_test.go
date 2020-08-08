@@ -10,8 +10,8 @@ func Test_Cmd(t *testing.T) {
 	if err != nil {
 		t.Error()
 	}
-	res, err := f(nil)
-	if err != nil || string(res) != "echo\n" {
+	stdout, stderr, err := f(nil)
+	if err != nil || string(stdout) != "echo\n" || string(stderr) != "" {
 		t.Error()
 	}
 }
