@@ -22,5 +22,5 @@ func main() {
 		return
 	}
 
-	os.Exit(internal.Run(flagC, flagD, flagO))
+	os.Exit(internal.NewHandler(flagC, flagD, flagO).Run())
 }

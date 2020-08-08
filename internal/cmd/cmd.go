@@ -8,29 +8,28 @@ import (
 
 type Factory interface {
 	New() (func([]byte) ([]byte, []byte, error), error)
+	String() string
 }
 
-func FactoryFromString(s string) Factory {
+func NewFactory(s string) Factory {
 	if s == "" {
 		return nil
 	}
 	args := strings.Split(s, " ")
-	return FactoryFromArgs(args[0], args[1:])
-}
-
-func FactoryFromArgs(name string, args []string) Factory {
-	return &cmdFactoryImpl{
-		name: name,
-		args: args,
+	return &factoryImpl{
+		s:    s,
+		name: args[0],
+		args: args[1:],
 	}
 }
 
-type cmdFactoryImpl struct {
+type factoryImpl struct {
+	s    string
 	name string
 	args []string
 }
 
-func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, []byte, error), error) {
+func (i *factoryImpl) New() (func(b []byte) ([]byte, []byte, error), error) {
 	cmd := exec.Command(i.name, i.args...)
 	wc, err := cmd.StdinPipe()
 	if err != nil {
@@ -52,4 +51,8 @@ func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, []byte, error), error) {
 		err = cmd.Run()
 		return stdout.Bytes(), stderr.Bytes(), err
 	}, nil
+}
+
+func (i *factoryImpl) String() string {
+	return i.s
 }

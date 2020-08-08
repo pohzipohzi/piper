@@ -5,7 +5,7 @@ import (
 )
 
 func Test_Cmd(t *testing.T) {
-	echoFactory := NewFactory("echo", []string{"echo"})
+	echoFactory := NewFactory("echo echo")
 	f, err := echoFactory.New()
 	if err != nil {
 		t.Error()

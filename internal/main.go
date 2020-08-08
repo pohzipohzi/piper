@@ -10,16 +10,27 @@ import (
 	"github.com/pohzipohzi/piper/internal/piper"
 )
 
-func Run(flagC string, flagD string, flagO bool) int {
+type Handler struct {
+	isOutputOnly bool
+	cmd          cmd.Factory
+	diff         cmd.Factory
+}
+
+func NewHandler(flagC string, flagD string, flagO bool) Handler {
+	return Handler{
+		isOutputOnly: flagO,
+		cmd:          cmd.NewFactory(flagC),
+		diff:         cmd.NewFactory(flagD),
+	}
+}
+
+func (h Handler) Run() int {
 	done := make(chan struct{})
 	cmdStdinChan := make(chan string)
 	go func() {
 		piper.New(os.Stdin, cmdStdinChan).Start()
 		done <- struct{}{}
 	}()
-
-	cmdFactory := cmd.FactoryFromString(flagC)
-	diffFactory := cmd.FactoryFromString(flagD)
 
 	stdout := bufio.NewWriter(os.Stdout)
 
@@ -31,7 +42,7 @@ func Run(flagC string, flagD string, flagO bool) int {
 			b := []byte(s)
 
 			// run command
-			f, err := cmdFactory.New()
+			f, err := h.cmd.New()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error creating command:", err)
 				continue
@@ -44,8 +55,8 @@ func Run(flagC string, flagD string, flagO bool) int {
 				fmt.Fprintln(os.Stderr, "error running command:", err)
 				continue
 			}
-			if flagD == "" {
-				if !flagO {
+			if h.diff == nil {
+				if !h.isOutputOnly {
 					stdout.WriteString("(input)\n")
 					stdout.Write(b)
 				}
@@ -57,7 +68,7 @@ func Run(flagC string, flagD string, flagO bool) int {
 			}
 
 			// run diff
-			f2, err := diffFactory.New()
+			f2, err := h.diff.New()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error creating command:", err)
 				continue
@@ -70,13 +81,13 @@ func Run(flagC string, flagD string, flagO bool) int {
 			if bytes.Equal(fstdout, f2stdout) {
 				continue
 			}
-			if !flagO {
+			if !h.isOutputOnly {
 				stdout.WriteString("(input)\n")
 				stdout.Write(b)
 			}
-			stdout.WriteString("(output: " + flagC + ")\n")
+			stdout.WriteString("(output: " + h.cmd.String() + ")\n")
 			stdout.Write(fstdout)
-			stdout.WriteString("(output: " + flagD + ")\n")
+			stdout.WriteString("(output: " + h.diff.String() + ")\n")
 			stdout.Write(f2stdout)
 			stdout.WriteByte('\n')
 			stdout.Flush()
