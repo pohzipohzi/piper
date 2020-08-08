@@ -31,30 +31,30 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 func (h Handler) Run() int {
 	toPipe := make(chan string)
 	done := h.startPiping(os.Stdin, toPipe)
-	cmdFactory := cmd.NewFactory(h.flagC)
-	diffFactory := cmd.NewFactory(h.flagD)
+	factoryC := cmd.NewFactory(h.flagC)
+	factoryD := cmd.NewFactory(h.flagD)
 	for {
 		select {
 		case <-done:
 			return 0
 		case s := <-toPipe:
 			input := []byte(s)
-			cmdStdout, err := h.run(cmdFactory, input)
+			stdoutC, err := h.run(factoryC, input)
 			if err != nil {
 				continue
 			}
 			if h.flagD == "" {
-				h.outputCmd(input, cmdStdout)
+				h.outputC(input, stdoutC)
 				continue
 			}
-			diffStdout, err := h.run(diffFactory, input)
+			stdoutD, err := h.run(factoryD, input)
 			if err != nil {
 				continue
 			}
-			if bytes.Equal(cmdStdout, diffStdout) {
+			if bytes.Equal(stdoutC, stdoutD) {
 				continue
 			}
-			h.outputDiff(input, cmdStdout, diffStdout)
+			h.outputD(input, stdoutC, stdoutD)
 		}
 	}
 }
@@ -82,7 +82,7 @@ func (h Handler) run(f cmd.Factory, input []byte) ([]byte, error) {
 	return stdout, err
 }
 
-func (h Handler) outputCmd(input, output []byte) {
+func (h Handler) outputC(input, output []byte) {
 	defer h.stdout.Flush()
 	if !h.flagO {
 		h.stdout.WriteString("(input)\n")
@@ -93,7 +93,7 @@ func (h Handler) outputCmd(input, output []byte) {
 	h.stdout.WriteByte('\n')
 }
 
-func (h Handler) outputDiff(input, outputC, outputD []byte) {
+func (h Handler) outputD(input, outputC, outputD []byte) {
 	defer h.stdout.Flush()
 	if !h.flagO {
 		h.stdout.WriteString("(input)\n")
