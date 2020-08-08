@@ -3,7 +3,6 @@ package internal
 import (
 	"bufio"
 	"bytes"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -12,21 +11,7 @@ import (
 	"github.com/pohzipohzi/piper/internal/piper"
 )
 
-func Main() {
-	var (
-		flagC string
-		flagD string
-		flagO bool
-	)
-	flag.StringVar(&flagC, "c", "", "the command to run")
-	flag.StringVar(&flagD, "d", "", "(optional) the command to diff against")
-	flag.BoolVar(&flagO, "o", false, "(optional) show output only")
-	flag.Parse()
-	if flagC == "" {
-		flag.Usage()
-		return
-	}
-
+func Run(flagC string, flagD string, flagO bool) int {
 	done := make(chan struct{})
 	cmdStdinChan := make(chan string)
 	go func() {
@@ -50,7 +35,7 @@ func Main() {
 	for {
 		select {
 		case <-done:
-			return
+			return 0
 		case s := <-cmdStdinChan:
 			b := []byte(s)
 
