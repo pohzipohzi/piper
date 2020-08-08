@@ -44,14 +44,7 @@ func (h Handler) Run() int {
 				continue
 			}
 			if h.flagD == "" {
-				if !h.flagO {
-					h.stdout.WriteString("(input)\n")
-					h.stdout.Write(input)
-				}
-				h.stdout.WriteString("(output)\n")
-				h.stdout.Write(cmdStdout)
-				h.stdout.WriteByte('\n')
-				h.stdout.Flush()
+				h.outputCmd(input, cmdStdout)
 				continue
 			}
 			diffStdout, err := h.run(diffFactory, input)
@@ -61,16 +54,7 @@ func (h Handler) Run() int {
 			if bytes.Equal(cmdStdout, diffStdout) {
 				continue
 			}
-			if !h.flagO {
-				h.stdout.WriteString("(input)\n")
-				h.stdout.Write(input)
-			}
-			h.stdout.WriteString("(output: " + h.flagC + ")\n")
-			h.stdout.Write(cmdStdout)
-			h.stdout.WriteString("(output: " + h.flagD + ")\n")
-			h.stdout.Write(diffStdout)
-			h.stdout.WriteByte('\n')
-			h.stdout.Flush()
+			h.outputDiff(input, cmdStdout, diffStdout)
 		}
 	}
 }
@@ -85,16 +69,39 @@ func (h Handler) startPiping(in io.Reader, out chan<- string) <-chan struct{} {
 }
 
 func (h Handler) run(f cmd.Factory, input []byte) ([]byte, error) {
+	defer h.stderr.Flush()
 	stdout, stderr, err := f.Run(input)
 	if len(stderr) > 0 {
 		h.stderr.Write(stderr)
 		h.stderr.WriteByte('\n')
-		h.stderr.Flush()
 	}
 	if err != nil {
 		h.stderr.WriteString("error running command: " + err.Error())
 		h.stderr.WriteByte('\n')
-		h.stderr.Flush()
 	}
 	return stdout, err
+}
+
+func (h Handler) outputCmd(input, output []byte) {
+	defer h.stdout.Flush()
+	if !h.flagO {
+		h.stdout.WriteString("(input)\n")
+		h.stdout.Write(input)
+	}
+	h.stdout.WriteString("(output)\n")
+	h.stdout.Write(output)
+	h.stdout.WriteByte('\n')
+}
+
+func (h Handler) outputDiff(input, outputC, outputD []byte) {
+	defer h.stdout.Flush()
+	if !h.flagO {
+		h.stdout.WriteString("(input)\n")
+		h.stdout.Write(input)
+	}
+	h.stdout.WriteString("(output: " + h.flagC + ")\n")
+	h.stdout.Write(outputC)
+	h.stdout.WriteString("(output: " + h.flagD + ")\n")
+	h.stdout.Write(outputD)
+	h.stdout.WriteByte('\n')
 }
