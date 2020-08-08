@@ -7,7 +7,7 @@ import (
 )
 
 // Piper continually reads from a reader into a buffer, eventually piping the
-// buffer to a channel as a line-separated string
+// buffer to a channel as a line-separated string.
 type Piper interface {
 	Start()
 }
