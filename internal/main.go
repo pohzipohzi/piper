@@ -11,20 +11,24 @@ import (
 )
 
 type Handler struct {
-	isOutputOnly bool
-	cmd          cmd.Factory
-	diff         cmd.Factory
-	stdout       *bufio.Writer
-	stderr       *bufio.Writer
+	flagC  string
+	flagD  string
+	flagO  bool
+	cmd    cmd.Factory
+	diff   cmd.Factory
+	stdout *bufio.Writer
+	stderr *bufio.Writer
 }
 
 func NewHandler(flagC string, flagD string, flagO bool) Handler {
 	return Handler{
-		isOutputOnly: flagO,
-		cmd:          cmd.NewFactory(flagC),
-		diff:         cmd.NewFactory(flagD),
-		stdout:       bufio.NewWriter(os.Stdout),
-		stderr:       bufio.NewWriter(os.Stderr),
+		flagC:  flagC,
+		flagD:  flagD,
+		flagO:  flagO,
+		cmd:    cmd.NewFactory(flagC),
+		diff:   cmd.NewFactory(flagD),
+		stdout: bufio.NewWriter(os.Stdout),
+		stderr: bufio.NewWriter(os.Stderr),
 	}
 }
 
@@ -50,8 +54,8 @@ func (h Handler) Run() int {
 				h.stderr.Flush()
 				continue
 			}
-			if h.diff == nil {
-				if !h.isOutputOnly {
+			if h.flagD == "" {
+				if !h.flagO {
 					h.stdout.WriteString("(input)\n")
 					h.stdout.Write(b)
 				}
@@ -78,13 +82,13 @@ func (h Handler) Run() int {
 			if bytes.Equal(cmdStdout, diffStdout) {
 				continue
 			}
-			if !h.isOutputOnly {
+			if !h.flagO {
 				h.stdout.WriteString("(input)\n")
 				h.stdout.Write(b)
 			}
-			h.stdout.WriteString("(output: " + h.cmd.String() + ")\n")
+			h.stdout.WriteString("(output: " + h.flagC + ")\n")
 			h.stdout.Write(cmdStdout)
-			h.stdout.WriteString("(output: " + h.diff.String() + ")\n")
+			h.stdout.WriteString("(output: " + h.flagD + ")\n")
 			h.stdout.Write(diffStdout)
 			h.stdout.WriteByte('\n')
 			h.stdout.Flush()

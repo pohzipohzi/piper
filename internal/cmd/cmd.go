@@ -8,7 +8,6 @@ import (
 
 type Factory interface {
 	Run(input []byte) (stdout []byte, stderr []byte, err error)
-	String() string
 }
 
 func NewFactory(s string) Factory {
@@ -17,14 +16,12 @@ func NewFactory(s string) Factory {
 	}
 	args := strings.Split(s, " ")
 	return &factoryImpl{
-		s:    s,
 		name: args[0],
 		args: args[1:],
 	}
 }
 
 type factoryImpl struct {
-	s    string
 	name string
 	args []string
 }
@@ -49,8 +46,4 @@ func (i *factoryImpl) Run(b []byte) ([]byte, []byte, error) {
 	cmd.Stderr = stderr
 	err = cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
-}
-
-func (i *factoryImpl) String() string {
-	return i.s
 }
