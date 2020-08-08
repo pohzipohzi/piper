@@ -1,12 +1,13 @@
 package cmd
 
 import (
+	"bytes"
 	"io"
 	"os/exec"
 )
 
 type Factory interface {
-	New() (func([]byte) ([]byte, error), error)
+	New() (func([]byte) ([]byte, []byte, error), error)
 }
 
 type Opt func(io.WriteCloser) io.WriteCloser
@@ -25,7 +26,7 @@ type cmdFactoryImpl struct {
 	opts []Opt
 }
 
-func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, error), error) {
+func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, []byte, error), error) {
 	cmd := exec.Command(i.name, i.args...)
 	wc, err := cmd.StdinPipe()
 	if err != nil {
@@ -34,15 +35,20 @@ func (i *cmdFactoryImpl) New() (func(b []byte) ([]byte, error), error) {
 	for _, o := range i.opts {
 		wc = o(wc)
 	}
-	return func(b []byte) ([]byte, error) {
+	return func(b []byte) ([]byte, []byte, error) {
 		_, err := wc.Write(b)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		err = wc.Close()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return cmd.Output()
+		stdout := &bytes.Buffer{}
+		stderr := &bytes.Buffer{}
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+		err = cmd.Run()
+		return stdout.Bytes(), stderr.Bytes(), err
 	}, nil
 }

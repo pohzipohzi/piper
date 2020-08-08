@@ -61,7 +61,10 @@ func Main() {
 				fmt.Fprintln(os.Stderr, "error creating command:", err)
 				continue
 			}
-			res, err := f(b)
+			fstdout, fstderr, err := f(b)
+			if len(fstderr) > 0 {
+				fmt.Fprintln(os.Stderr, string(fstderr))
+			}
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error running command:", err)
 				continue
@@ -72,7 +75,7 @@ func Main() {
 					stdout.Write(b)
 				}
 				stdout.WriteString("(output)\n")
-				stdout.Write(res)
+				stdout.Write(fstdout)
 				stdout.WriteByte('\n')
 				stdout.Flush()
 				continue
@@ -84,12 +87,12 @@ func Main() {
 				fmt.Fprintln(os.Stderr, "error creating command:", err)
 				continue
 			}
-			res2, err := f2(b)
+			f2stdout, _, err := f2(b)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error running command:", err)
 				continue
 			}
-			if bytes.Equal(res, res2) {
+			if bytes.Equal(fstdout, f2stdout) {
 				continue
 			}
 			if !flagO {
@@ -97,9 +100,9 @@ func Main() {
 				stdout.Write(b)
 			}
 			stdout.WriteString("(output: " + flagC + ")\n")
-			stdout.Write(res)
+			stdout.Write(fstdout)
 			stdout.WriteString("(output: " + flagD + ")\n")
-			stdout.Write(res2)
+			stdout.Write(f2stdout)
 			stdout.WriteByte('\n')
 			stdout.Flush()
 		}
