@@ -3,7 +3,6 @@ package internal
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -28,11 +27,11 @@ func Main() {
 		return
 	}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	done := make(chan struct{})
 	cmdStdinChan := make(chan string)
 	go func() {
 		piper.New(os.Stdin, cmdStdinChan).Start()
-		cancelFunc()
+		done <- struct{}{}
 	}()
 
 	var (
@@ -50,7 +49,7 @@ func Main() {
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-done:
 			return
 		case s := <-cmdStdinChan:
 			b := []byte(s)
