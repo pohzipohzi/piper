@@ -3,13 +3,22 @@ package cmd
 import (
 	"bytes"
 	"os/exec"
+	"strings"
 )
 
 type Factory interface {
 	New() (func([]byte) ([]byte, []byte, error), error)
 }
 
-func NewFactory(name string, args []string) Factory {
+func FactoryFromString(s string) Factory {
+	if s == "" {
+		return nil
+	}
+	args := strings.Split(s, " ")
+	return FactoryFromArgs(args[0], args[1:])
+}
+
+func FactoryFromArgs(name string, args []string) Factory {
 	return &cmdFactoryImpl{
 		name: name,
 		args: args,

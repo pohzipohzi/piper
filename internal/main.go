@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/pohzipohzi/piper/internal/cmd"
 	"github.com/pohzipohzi/piper/internal/piper"
@@ -19,16 +18,8 @@ func Run(flagC string, flagD string, flagO bool) int {
 		done <- struct{}{}
 	}()
 
-	var (
-		cmdFactory  cmd.Factory
-		diffFactory cmd.Factory
-	)
-	cmdArgs := strings.Split(flagC, " ")
-	cmdFactory = cmd.NewFactory(cmdArgs[0], cmdArgs[1:])
-	if flagD != "" {
-		diffArgs := strings.Split(flagD, " ")
-		diffFactory = cmd.NewFactory(diffArgs[0], diffArgs[1:])
-	}
+	cmdFactory := cmd.FactoryFromString(flagC)
+	diffFactory := cmd.FactoryFromString(flagD)
 
 	stdout := bufio.NewWriter(os.Stdout)
 
