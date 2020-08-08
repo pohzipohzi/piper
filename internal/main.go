@@ -28,38 +28,33 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 }
 
 func (h Handler) Run() int {
-	toPipe := make(chan string)
-	done := make(chan struct{})
+	piperOut := make(chan string)
 	go func() {
-		piper.New(os.Stdin, toPipe).Start()
-		done <- struct{}{}
+		defer close(piperOut)
+		piper.New(os.Stdin, piperOut).Start()
 	}()
 	factoryC := cmd.NewFactory(h.flagC)
 	factoryD := cmd.NewFactory(h.flagD)
-	for {
-		select {
-		case <-done:
-			return 0
-		case s := <-toPipe:
-			input := []byte(s)
-			stdoutC, err := h.run(factoryC, input)
-			if err != nil {
-				continue
-			}
-			if h.flagD == "" {
-				h.outputC(input, stdoutC)
-				continue
-			}
-			stdoutD, err := h.run(factoryD, input)
-			if err != nil {
-				continue
-			}
-			if bytes.Equal(stdoutC, stdoutD) {
-				continue
-			}
-			h.outputD(input, stdoutC, stdoutD)
+	for s := range piperOut {
+		cmdIn := []byte(s)
+		stdoutC, err := h.run(factoryC, cmdIn)
+		if err != nil {
+			continue
 		}
+		if h.flagD == "" {
+			h.outputC(cmdIn, stdoutC)
+			continue
+		}
+		stdoutD, err := h.run(factoryD, cmdIn)
+		if err != nil {
+			continue
+		}
+		if bytes.Equal(stdoutC, stdoutD) {
+			continue
+		}
+		h.outputD(cmdIn, stdoutC, stdoutD)
 	}
+	return 0
 }
 
 func (h Handler) run(f cmd.Factory, input []byte) ([]byte, error) {
