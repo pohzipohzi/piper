@@ -72,12 +72,12 @@ func (h Handler) run(f cmd.Factory, input []byte) ([]byte, error) {
 	defer h.stderr.Flush()
 	stdout, stderr, err := f.Run(input)
 	if len(stderr) > 0 {
-		h.stderr.Write(stderr)
-		h.stderr.WriteByte('\n')
+		_, _ = h.stderr.Write(stderr)
+		_ = h.stderr.WriteByte('\n')
 	}
 	if err != nil {
-		h.stderr.WriteString("error running command: " + err.Error())
-		h.stderr.WriteByte('\n')
+		_, _ = h.stderr.WriteString("error running command: " + err.Error())
+		_ = h.stderr.WriteByte('\n')
 	}
 	return stdout, err
 }
@@ -85,23 +85,23 @@ func (h Handler) run(f cmd.Factory, input []byte) ([]byte, error) {
 func (h Handler) outputC(input, output []byte) {
 	defer h.stdout.Flush()
 	if !h.flagO {
-		h.stdout.WriteString("(input)\n")
-		h.stdout.Write(input)
+		_, _ = h.stdout.WriteString("(input)\n")
+		_, _ = h.stdout.Write(input)
 	}
-	h.stdout.WriteString("(output)\n")
-	h.stdout.Write(output)
-	h.stdout.WriteByte('\n')
+	_, _ = h.stdout.WriteString("(output)\n")
+	_, _ = h.stdout.Write(output)
+	_ = h.stdout.WriteByte('\n')
 }
 
 func (h Handler) outputD(input, outputC, outputD []byte) {
 	defer h.stdout.Flush()
 	if !h.flagO {
-		h.stdout.WriteString("(input)\n")
-		h.stdout.Write(input)
+		_, _ = h.stdout.WriteString("(input)\n")
+		_, _ = h.stdout.Write(input)
 	}
-	h.stdout.WriteString("(output: " + h.flagC + ")\n")
-	h.stdout.Write(outputC)
-	h.stdout.WriteString("(output: " + h.flagD + ")\n")
-	h.stdout.Write(outputD)
-	h.stdout.WriteByte('\n')
+	_, _ = h.stdout.WriteString("(output: " + h.flagC + ")\n")
+	_, _ = h.stdout.Write(outputC)
+	_, _ = h.stdout.WriteString("(output: " + h.flagD + ")\n")
+	_, _ = h.stdout.Write(outputD)
+	_ = h.stdout.WriteByte('\n')
 }
