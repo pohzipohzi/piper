@@ -3,7 +3,6 @@ package internal
 import (
 	"bufio"
 	"bytes"
-	"io"
 	"os"
 
 	"github.com/pohzipohzi/piper/internal/cmd"
@@ -30,7 +29,11 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 
 func (h Handler) Run() int {
 	toPipe := make(chan string)
-	done := h.startPiping(os.Stdin, toPipe)
+	done := make(chan struct{})
+	go func() {
+		piper.New(os.Stdin, toPipe).Start()
+		done <- struct{}{}
+	}()
 	factoryC := cmd.NewFactory(h.flagC)
 	factoryD := cmd.NewFactory(h.flagD)
 	for {
@@ -57,15 +60,6 @@ func (h Handler) Run() int {
 			h.outputD(input, stdoutC, stdoutD)
 		}
 	}
-}
-
-func (h Handler) startPiping(in io.Reader, out chan<- string) <-chan struct{} {
-	done := make(chan struct{})
-	go func() {
-		piper.New(in, out).Start()
-		done <- struct{}{}
-	}()
-	return done
 }
 
 func (h Handler) run(f cmd.Factory, input []byte) ([]byte, error) {
