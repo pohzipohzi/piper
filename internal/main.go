@@ -15,6 +15,7 @@ type Handler struct {
 	isOutputOnly bool
 	cmd          cmd.Factory
 	diff         cmd.Factory
+	stdout       *bufio.Writer
 }
 
 func NewHandler(flagC string, flagD string, flagO bool) Handler {
@@ -22,11 +23,11 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 		isOutputOnly: flagO,
 		cmd:          cmd.NewFactory(flagC),
 		diff:         cmd.NewFactory(flagD),
+		stdout:       bufio.NewWriter(os.Stdout),
 	}
 }
 
 func (h Handler) Run() int {
-	stdout := bufio.NewWriter(os.Stdout)
 	toPipe := make(chan string)
 	done := h.startPiping(os.Stdin, toPipe)
 	for {
@@ -52,13 +53,13 @@ func (h Handler) Run() int {
 			}
 			if h.diff == nil {
 				if !h.isOutputOnly {
-					stdout.WriteString("(input)\n")
-					stdout.Write(b)
+					h.stdout.WriteString("(input)\n")
+					h.stdout.Write(b)
 				}
-				stdout.WriteString("(output)\n")
-				stdout.Write(fstdout)
-				stdout.WriteByte('\n')
-				stdout.Flush()
+				h.stdout.WriteString("(output)\n")
+				h.stdout.Write(fstdout)
+				h.stdout.WriteByte('\n')
+				h.stdout.Flush()
 				continue
 			}
 
@@ -77,15 +78,15 @@ func (h Handler) Run() int {
 				continue
 			}
 			if !h.isOutputOnly {
-				stdout.WriteString("(input)\n")
-				stdout.Write(b)
+				h.stdout.WriteString("(input)\n")
+				h.stdout.Write(b)
 			}
-			stdout.WriteString("(output: " + h.cmd.String() + ")\n")
-			stdout.Write(fstdout)
-			stdout.WriteString("(output: " + h.diff.String() + ")\n")
-			stdout.Write(f2stdout)
-			stdout.WriteByte('\n')
-			stdout.Flush()
+			h.stdout.WriteString("(output: " + h.cmd.String() + ")\n")
+			h.stdout.Write(fstdout)
+			h.stdout.WriteString("(output: " + h.diff.String() + ")\n")
+			h.stdout.Write(f2stdout)
+			h.stdout.WriteByte('\n')
+			h.stdout.Flush()
 		}
 	}
 }
