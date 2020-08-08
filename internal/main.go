@@ -14,8 +14,6 @@ type Handler struct {
 	flagC  string
 	flagD  string
 	flagO  bool
-	cmd    cmd.Factory
-	diff   cmd.Factory
 	stdout *bufio.Writer
 	stderr *bufio.Writer
 }
@@ -25,8 +23,6 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 		flagC:  flagC,
 		flagD:  flagD,
 		flagO:  flagO,
-		cmd:    cmd.NewFactory(flagC),
-		diff:   cmd.NewFactory(flagD),
 		stdout: bufio.NewWriter(os.Stdout),
 		stderr: bufio.NewWriter(os.Stderr),
 	}
@@ -35,29 +31,22 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 func (h Handler) Run() int {
 	toPipe := make(chan string)
 	done := h.startPiping(os.Stdin, toPipe)
+	cmdFactory := cmd.NewFactory(h.flagC)
+	diffFactory := cmd.NewFactory(h.flagD)
 	for {
 		select {
 		case <-done:
 			return 0
 		case s := <-toPipe:
-			b := []byte(s)
-
-			cmdStdout, cmdStderr, err := h.cmd.Run(b)
-			if len(cmdStderr) > 0 {
-				h.stderr.Write(cmdStderr)
-				h.stderr.WriteByte('\n')
-				h.stderr.Flush()
-			}
+			input := []byte(s)
+			cmdStdout, err := h.run(cmdFactory, input)
 			if err != nil {
-				h.stderr.WriteString("error running command: " + err.Error())
-				h.stderr.WriteByte('\n')
-				h.stderr.Flush()
 				continue
 			}
 			if h.flagD == "" {
 				if !h.flagO {
 					h.stdout.WriteString("(input)\n")
-					h.stdout.Write(b)
+					h.stdout.Write(input)
 				}
 				h.stdout.WriteString("(output)\n")
 				h.stdout.Write(cmdStdout)
@@ -65,18 +54,8 @@ func (h Handler) Run() int {
 				h.stdout.Flush()
 				continue
 			}
-
-			// run diff
-			diffStdout, diffStderr, err := h.diff.Run(b)
-			if len(diffStderr) > 0 {
-				h.stderr.Write(cmdStderr)
-				h.stderr.WriteByte('\n')
-				h.stderr.Flush()
-			}
+			diffStdout, err := h.run(diffFactory, input)
 			if err != nil {
-				h.stderr.WriteString("error running command: " + err.Error())
-				h.stderr.WriteByte('\n')
-				h.stderr.Flush()
 				continue
 			}
 			if bytes.Equal(cmdStdout, diffStdout) {
@@ -84,7 +63,7 @@ func (h Handler) Run() int {
 			}
 			if !h.flagO {
 				h.stdout.WriteString("(input)\n")
-				h.stdout.Write(b)
+				h.stdout.Write(input)
 			}
 			h.stdout.WriteString("(output: " + h.flagC + ")\n")
 			h.stdout.Write(cmdStdout)
@@ -103,4 +82,19 @@ func (h Handler) startPiping(in io.Reader, out chan<- string) <-chan struct{} {
 		done <- struct{}{}
 	}()
 	return done
+}
+
+func (h Handler) run(f cmd.Factory, input []byte) ([]byte, error) {
+	stdout, stderr, err := f.Run(input)
+	if len(stderr) > 0 {
+		h.stderr.Write(stderr)
+		h.stderr.WriteByte('\n')
+		h.stderr.Flush()
+	}
+	if err != nil {
+		h.stderr.WriteString("error running command: " + err.Error())
+		h.stderr.WriteByte('\n')
+		h.stderr.Flush()
+	}
+	return stdout, err
 }
