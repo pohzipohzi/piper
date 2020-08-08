@@ -3,7 +3,6 @@ package internal
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 
@@ -16,6 +15,7 @@ type Handler struct {
 	cmd          cmd.Factory
 	diff         cmd.Factory
 	stdout       *bufio.Writer
+	stderr       *bufio.Writer
 }
 
 func NewHandler(flagC string, flagD string, flagO bool) Handler {
@@ -24,6 +24,7 @@ func NewHandler(flagC string, flagD string, flagO bool) Handler {
 		cmd:          cmd.NewFactory(flagC),
 		diff:         cmd.NewFactory(flagD),
 		stdout:       bufio.NewWriter(os.Stdout),
+		stderr:       bufio.NewWriter(os.Stderr),
 	}
 }
 
@@ -40,15 +41,21 @@ func (h Handler) Run() int {
 			// run command
 			f, err := h.cmd.New()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "error creating command:", err)
+				h.stderr.WriteString("error creating command: " + err.Error())
+				h.stderr.WriteByte('\n')
+				h.stderr.Flush()
 				continue
 			}
 			fstdout, fstderr, err := f(b)
 			if len(fstderr) > 0 {
-				fmt.Fprintln(os.Stderr, string(fstderr))
+				h.stderr.Write(fstderr)
+				h.stderr.WriteByte('\n')
+				h.stderr.Flush()
 			}
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "error running command:", err)
+				h.stderr.WriteString("error running command: " + err.Error())
+				h.stderr.WriteByte('\n')
+				h.stderr.Flush()
 				continue
 			}
 			if h.diff == nil {
@@ -66,12 +73,16 @@ func (h Handler) Run() int {
 			// run diff
 			f2, err := h.diff.New()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "error creating command:", err)
+				h.stderr.WriteString("error creating command: " + err.Error())
+				h.stderr.WriteByte('\n')
+				h.stderr.Flush()
 				continue
 			}
 			f2stdout, _, err := f2(b)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "error running command:", err)
+				h.stderr.WriteString("error running command: " + err.Error())
+				h.stderr.WriteByte('\n')
+				h.stderr.Flush()
 				continue
 			}
 			if bytes.Equal(fstdout, f2stdout) {
