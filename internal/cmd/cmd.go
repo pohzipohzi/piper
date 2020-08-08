@@ -7,7 +7,7 @@ import (
 )
 
 type Factory interface {
-	New() (func([]byte) ([]byte, []byte, error), error)
+	Run(input []byte) (stdout []byte, stderr []byte, err error)
 	String() string
 }
 
@@ -29,28 +29,26 @@ type factoryImpl struct {
 	args []string
 }
 
-func (i *factoryImpl) New() (func(b []byte) ([]byte, []byte, error), error) {
+func (i *factoryImpl) Run(b []byte) ([]byte, []byte, error) {
 	cmd := exec.Command(i.name, i.args...)
 	wc, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return func(b []byte) ([]byte, []byte, error) {
-		_, err := wc.Write(b)
-		if err != nil {
-			return nil, nil, err
-		}
-		err = wc.Close()
-		if err != nil {
-			return nil, nil, err
-		}
-		stdout := &bytes.Buffer{}
-		stderr := &bytes.Buffer{}
-		cmd.Stdout = stdout
-		cmd.Stderr = stderr
-		err = cmd.Run()
-		return stdout.Bytes(), stderr.Bytes(), err
-	}, nil
+	_, err = wc.Write(b)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = wc.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	err = cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), err
 }
 
 func (i *factoryImpl) String() string {

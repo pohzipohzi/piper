@@ -38,17 +38,9 @@ func (h Handler) Run() int {
 		case s := <-toPipe:
 			b := []byte(s)
 
-			// run command
-			f, err := h.cmd.New()
-			if err != nil {
-				h.stderr.WriteString("error creating command: " + err.Error())
-				h.stderr.WriteByte('\n')
-				h.stderr.Flush()
-				continue
-			}
-			fstdout, fstderr, err := f(b)
-			if len(fstderr) > 0 {
-				h.stderr.Write(fstderr)
+			cmdStdout, cmdStderr, err := h.cmd.Run(b)
+			if len(cmdStderr) > 0 {
+				h.stderr.Write(cmdStderr)
 				h.stderr.WriteByte('\n')
 				h.stderr.Flush()
 			}
@@ -64,28 +56,26 @@ func (h Handler) Run() int {
 					h.stdout.Write(b)
 				}
 				h.stdout.WriteString("(output)\n")
-				h.stdout.Write(fstdout)
+				h.stdout.Write(cmdStdout)
 				h.stdout.WriteByte('\n')
 				h.stdout.Flush()
 				continue
 			}
 
 			// run diff
-			f2, err := h.diff.New()
-			if err != nil {
-				h.stderr.WriteString("error creating command: " + err.Error())
+			diffStdout, diffStderr, err := h.diff.Run(b)
+			if len(diffStderr) > 0 {
+				h.stderr.Write(cmdStderr)
 				h.stderr.WriteByte('\n')
 				h.stderr.Flush()
-				continue
 			}
-			f2stdout, _, err := f2(b)
 			if err != nil {
 				h.stderr.WriteString("error running command: " + err.Error())
 				h.stderr.WriteByte('\n')
 				h.stderr.Flush()
 				continue
 			}
-			if bytes.Equal(fstdout, f2stdout) {
+			if bytes.Equal(cmdStdout, diffStdout) {
 				continue
 			}
 			if !h.isOutputOnly {
@@ -93,9 +83,9 @@ func (h Handler) Run() int {
 				h.stdout.Write(b)
 			}
 			h.stdout.WriteString("(output: " + h.cmd.String() + ")\n")
-			h.stdout.Write(fstdout)
+			h.stdout.Write(cmdStdout)
 			h.stdout.WriteString("(output: " + h.diff.String() + ")\n")
-			h.stdout.Write(f2stdout)
+			h.stdout.Write(diffStdout)
 			h.stdout.WriteByte('\n')
 			h.stdout.Flush()
 		}
