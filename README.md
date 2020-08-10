@@ -1,4 +1,4 @@
-# Piper
+# Piper [![Build Status](https://travis-ci.com/pohzipohzi/piper.svg?branch=master)](https://travis-ci.com/pohzipohzi/piper) [![Coverage Status](https://coveralls.io/repos/github/pohzipohzi/piper/badge.svg)](https://coveralls.io/github/pohzipohzi/piper)
 
 Piper buffers and pipes line-separated input into a provided command. 
 
