@@ -6,15 +6,11 @@ Piper buffers and pipes line-separated input into a provided command.
 
 #### Via Go
 
-Simply run `install` in the root directory:
-
 ```
-go install
+go get github.com/pohzipohzi/piper
 ```
 
 #### Via Docker
-
-Build the image in the root directory and run it interactively:
 
 ```
 docker build -t piper .
